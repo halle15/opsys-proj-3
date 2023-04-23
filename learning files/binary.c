@@ -51,7 +51,7 @@ void print_binary(unsigned int num)
 
 int main(int argc, char const *argv[])
 {
-    int s = 0x00F0FFAF;
+    int s = 0xF0F0FFAF;
     // printf("size: %d\n", sizeof(s));
     // bit_mask();
     /*
