@@ -25,7 +25,9 @@
     Y. create a structure to store TLB entry.
     Z. create helper functions for checking, updating and flushing the tlb.
 
-    F. implement the main, command line arguments, final error checking, final quality check
+    D. implement main function, translate each logical address to corresponding physical address, extract byte value. Program should check TLB, if TLB hit, goto frame number and offset from physical memory and read, if TLB miss, go to page table, get frame number, read from physical memory. 
+
+    F. implement command line arguments, final error checking, final quality check
 */
 
 /* data structures/functions(most recommended by zoom at ~ 36 min)
