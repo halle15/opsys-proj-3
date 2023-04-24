@@ -5,15 +5,15 @@
 
 #define MAX_NUMBERS 1000 // Maximum number of integers that can be read from file
 
-unsigned int info_extract(uint32_t num){
+int info_extract(int num){
     return (num >> 16) & 0xFFFF;
 }
 
-unsigned int page_extract(uint32_t num){
+int page_extract(int num){
     return (num >> 8) & 0xFF;
 }
 
-unsigned int offset_extract(uint32_t num){
+int offset_extract(int num){
     return num & 0xFF;
 }
 
