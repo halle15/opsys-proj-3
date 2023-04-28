@@ -129,3 +129,7 @@ Update the page table with the frame number.
 Update the TLB with the new page number and frame number entry.
 Return the frame number.
 Else, return the frame number from the page table.
+
+You should read from the backing store and load the data into physical memory. 
+To decide where in the physical memory the data should go, you will need to find an available frame. 
+You can use a simple counter (like a variable called next_available_frame) that increments each time a frame is assigned. This method works when the physical memory size is the same as the virtual address space size, as you don't need to worry about page replacement.
