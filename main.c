@@ -111,6 +111,15 @@ void print_binary(unsigned int num)
     }
 }
 
+/*
+    You should read from the backing store and load the data into physical memory. 
+    To decide where in the physical memory the data should go, you will need to find an available frame. 
+    You can use a simple counter (like a variable called next_available_frame) that increments each time a frame is assigned. This method works when the physical memory size is the same as the virtual address space size, as you don't need to worry about page replacement.
+*/
+void read_backing_store(int page_number){
+
+}
+
 int main(int argc, char const *argv[])
 {
     printf("Program Start\n");
