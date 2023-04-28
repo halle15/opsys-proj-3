@@ -84,6 +84,7 @@
     init_page_table() // set all elements in array to negative 1
     get_next_free_frame() //
     flush_tlb() // all elements in the struct to negative 1
+
     check_tlb(int); // 
         logic from diagram:
             look through TLB to see if page number exists in the array, 
@@ -106,3 +107,25 @@
             represented as a signed char at the physical address
 
 */
+
+BETTER NOTES:
+
+check_tlb(int page_number):
+
+Iterate through the TLB to see if the page number exists.
+If the page number is found, increment the TLB hit count for metrics, and return the corresponding frame number.
+If not found, return -1 (TLB miss), and look up in the page table instead.
+update_tlb(int page_number, int frame_number):
+
+Add the new page number and frame number to the TLB.
+If the TLB is full, use a replacement strategy (FIFO or LRU) to evict an existing entry before adding the new one.
+check_page_table(int page_number):
+
+Check the corresponding index in the page table (no need to loop).
+If the value is -1, it's a page fault. Increment the page fault count for metrics and handle the page fault:
+Seek to the correct position in the backing store: page_number * PAGE_SIZE.
+Read the page from the backing store into an available frame in physical memory.
+Update the page table with the frame number.
+Update the TLB with the new page number and frame number entry.
+Return the frame number.
+Else, return the frame number from the page table.
