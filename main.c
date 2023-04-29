@@ -15,6 +15,12 @@
 #define PAGE_NUMBER_MASK 0x0000FF00 // TWO BITS BEFORE LAST TWO
 #define OFFSET_MASK 0x000000FF      // LAST TWO BITS
 
+int n_translated_addresses = 0;
+int page_faults = 0;
+long pfr = 0;
+int tlb_hits = 0;
+long thr = 0;
+
 // ============================
 
 int pageTable[PAGE_TABLE];
@@ -102,6 +108,7 @@ void init_page_table()
     }
 
     printf("Page Table Initialized\n");
+    next_frame = 0; // Initialize next_frame to 0 after the page table is initialized
 }
 
 /*
@@ -160,7 +167,7 @@ void put_in_memory(int frame_number, int offset, char value)
     }
 
     // Store the value in the appropriate location in physical memory
-    physical_memory[frame_number][offset] = value;
+    physical_memory[frame_number][offset] = (signed char)value;
 }
 
 /**
@@ -183,21 +190,24 @@ void translate_address(int logical_address)
     frame_number = search_tlb(page_number);
     if (frame_number != -1)
     {
+        //printf("from tlb\n");
         physical_address = (frame_number * FRAME_SIZE) + page_offset;
         value = check_physical_address(frame_number, page_offset);
+
     } // tlb hit
     else
-    {
-
+    {  
         frame_number = check_page_table(page_number);
         if (frame_number != -1)
         {
+            //printf("from page \n");
             physical_address = (frame_number * FRAME_SIZE) + page_offset;
             value = check_physical_address(frame_number, page_offset);
             // handle page hit
         }
         else
         {
+            //printf("from backing\n");
             // Read the entire page from the backing store
             signed char page_data[FRAME_SIZE];
             search_backing_store(page_number, page_data);
@@ -213,7 +223,7 @@ void translate_address(int logical_address)
             // Get the value from the correct offset within the page
             value = page_data[page_offset];
 
-            physical_address = ((frame_number * FRAME_SIZE) + page_offset);
+            physical_address = (frame_number * FRAME_SIZE) + page_offset;
 
             update_page_table(page_number, frame_number);
 
@@ -224,8 +234,13 @@ void translate_address(int logical_address)
 
     // printf("Virtual Address: %d, Physical Address %d, Value: %d\n", logical_address, physical_address, value);
 
-    printf("Virtual Address: %d, Physical Address %d, Value: %d, Page Offset: %d, Page Number: %d, Frame Number:\n", logical_address, physical_address, value, page_offset, page_number, frame_number);
+    printf("Virtual Address: %d, Physical Address %d, Value: %d, Page Offset: %d, Page Number: %d, Frame Number: %d\n", logical_address, physical_address, value, page_offset, page_number, frame_number);
+    
     // page number first goes to TLB to find frame number, if not TLB then go to page table for frame number. If page fault, go to backing store.
+}
+
+void print_stats(){
+    printf("Number of Translated Addresses: %d\nPage Faults: %d\nPage Fault Rate: %ld\nTLB Hits: %d\nTLB Hit Rate: %ld\n", n_translated_addresses, page_faults, pfr, tlb_hits, thr);
 }
 
 int main(int argc, char const *argv[])
@@ -262,6 +277,8 @@ int main(int argc, char const *argv[])
 
     // Close the input file
     fclose(fp);
+
+    print_stats();
 
     printf("Program Ended Successfully!\n");
     return 0;
