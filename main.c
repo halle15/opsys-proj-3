@@ -1,4 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
+
+// compile: gcc -o proj3 main.c
 
 #define PAGE_SIZE 256  // 2^8
 #define FRAME_SIZE 256 // 2^8
@@ -9,10 +12,14 @@
 
 #define BUFFER 10 // stores logical addresses from addresses.txt?
 
-// ============================
-
 #define PAGE_NUMBER_MASK 0x0000FF00 // TWO BITS BEFORE LAST TWO
 #define OFFSET_MASK 0x000000FF      // LAST TWO BITS
+
+int n_translated_addresses = 0;
+int page_faults = 0;
+long pfr = 0;
+int tlb_hits = 0;
+long thr = 0;
 
 // ============================
 
@@ -27,33 +34,27 @@ typedef struct tlb_entry
 
 } tlb_entry_t;
 
-signed char physical_memory[NUMBER_OF_FRAMES][FRAME_SIZE];
+signed char physical_memory[NUMBER_OF_FRAMES][FRAME_SIZE]; // representation of physical memory
 
 tlb_entry_t tlb[TLB_SIZE];
+
+int next_frame = 0;
 
 // ========METRICS=========
 
 // ========================
 
+int get_next_available_frame()
+{
+    int frame = next_frame;
+    next_frame = (next_frame + 1) % NUMBER_OF_FRAMES;
+    return frame;
+}
 
 // -1 result = page fault
 int check_page_table(int page_num)
 {
-    int result = pageTable[page_num];
-
-    if (result == -1)
-    {
-        printf("page fault\n");
-        /* increment local stat variable for page fault
-             look into backing store
-                 use fseek func, pagenum * page size;
-        */
-    }
-    else
-    {
-        printf("%d\n", result);
-    }
-    return result;
+    return pageTable[page_num];
 }
 
 void update_page_table(int page_num, int frame_num)
@@ -90,7 +91,13 @@ int search_tlb(int page_number)
 
 void update_tlb(int page_number, int frame_number)
 {
-    // tbd
+    static int next_tlb_entry = 0;
+
+    tlb[next_tlb_entry].page_number = page_number;
+    tlb[next_tlb_entry].frame_number = frame_number;
+    tlb[next_tlb_entry].valid = 1;
+
+    next_tlb_entry = (next_tlb_entry + 1) % TLB_SIZE;
 }
 
 void init_page_table()
@@ -101,23 +108,139 @@ void init_page_table()
     }
 
     printf("Page Table Initialized\n");
-}
-
-void print_binary(unsigned int num)
-{
-    for (int i = 31; i >= 0; i--)
-    {
-        printf("%d", (num >> i) & 1);
-    }
+    next_frame = 0; // Initialize next_frame to 0 after the page table is initialized
 }
 
 /*
-    You should read from the backing store and load the data into physical memory. 
-    To decide where in the physical memory the data should go, you will need to find an available frame. 
+    You should read from the backing store and load the data into physical memory.
+    To decide where in the physical memory the data should go, you will need to find an available frame.
     You can use a simple counter (like a variable called next_available_frame) that increments each time a frame is assigned. This method works when the physical memory size is the same as the virtual address space size, as you don't need to worry about page replacement.
 */
-void read_backing_store(int page_number){
+void search_backing_store(int page_number, signed char *page_data)
+{
+    // Open the backing store
+    FILE *backing_store = fopen("BACKING_STORE.bin", "rb");
+    if (backing_store == NULL)
+    {
+        printf("Error: Could not open BACKING_STORE.bin\n");
+        exit(1);
+    }
 
+    // Read the entire page from the backing store into the page_data buffer
+    fseek(backing_store, page_number * PAGE_SIZE, SEEK_SET);
+    fread(page_data, sizeof(signed char), PAGE_SIZE, backing_store);
+
+    // Close the backing store
+    fclose(backing_store);
+}
+
+int check_physical_address(int frame_number, int offset)
+{
+    // Check if the frame_number and offset are within bounds
+    if (frame_number >= 0 && frame_number < NUMBER_OF_FRAMES && offset >= 0 && offset < FRAME_SIZE)
+    {
+        // Get the signed char value stored in the physical memory at the given frame number and offset
+        signed char stored_value = physical_memory[frame_number][offset];
+
+        // Return the value as an int
+        return (int)stored_value;
+    }
+    else
+    {
+        printf("Error: Invalid frame_number or offset.\n");
+        return -1;
+    }
+}
+
+void put_in_memory(int frame_number, int offset, char value)
+{
+    // Check that the frame number and offset are within bounds
+    if (frame_number < 0 || frame_number >= NUMBER_OF_FRAMES)
+    {
+        printf("Error: Frame number %d is out of bounds\n", frame_number);
+        exit(1);
+    }
+    if (offset < 0 || offset >= FRAME_SIZE)
+    {
+        printf("Error: Offset %d is out of bounds\n", offset);
+        exit(1);
+    }
+
+    // Store the value in the appropriate location in physical memory
+    physical_memory[frame_number][offset] = (signed char)value;
+}
+
+/**
+ * @brief Translates a logical address to a physical address using the TLB and page table.
+ *
+ * @param logical_address The logical address to translate.
+ * @return The corresponding physical address.
+ */
+void translate_address(int logical_address)
+{
+    // Extract the page number and offset from the logical address
+    int page_number = (logical_address >> 8) & 0xFF;
+    int page_offset = logical_address & 0xFF;
+
+    int frame_number; // used to find result with (frame_number * FRAME_SIZE) + offset
+
+    int value = 0;            // result to be printed
+    int physical_address = 0; // result
+
+    frame_number = search_tlb(page_number);
+    if (frame_number != -1)
+    {
+        //printf("from tlb\n");
+        physical_address = (frame_number * FRAME_SIZE) + page_offset;
+        value = check_physical_address(frame_number, page_offset);
+
+    } // tlb hit
+    else
+    {  
+        frame_number = check_page_table(page_number);
+        if (frame_number != -1)
+        {
+            //printf("from page \n");
+            physical_address = (frame_number * FRAME_SIZE) + page_offset;
+            value = check_physical_address(frame_number, page_offset);
+            // handle page hit
+        }
+        else
+        {
+            //printf("from backing\n");
+            // Read the entire page from the backing store
+            signed char page_data[FRAME_SIZE];
+            search_backing_store(page_number, page_data);
+
+            frame_number = get_next_available_frame();
+
+            // Store the entire page in physical memory
+            for (int i = 0; i < FRAME_SIZE; i++)
+            {
+                put_in_memory(frame_number, i, page_data[i]);
+            }
+
+            // Get the value from the correct offset within the page
+            value = page_data[page_offset];
+
+            physical_address = (frame_number * FRAME_SIZE) + page_offset;
+
+            update_page_table(page_number, frame_number);
+
+            // update_tlb(page_number, frame_number);
+            // look in backing store, send to physical memory, send to page table, send to tlb.
+        }
+    }
+
+    // printf("Virtual Address: %d, Physical Address %d, Value: %d\n", logical_address, physical_address, value);
+
+    printf("Virtual Address: %d, Physical Address %d, Value: %d, Page Offset: %d, Page Number: %d, Frame Number: %d\n", logical_address, physical_address, value, page_offset, page_number, frame_number);
+    
+    // page number first goes to TLB to find frame number, if not TLB then go to page table for frame number. If page fault, go to backing store.
+}
+
+void print_stats(){
+    printf("Number of Translated Addresses: %d\nPage Faults: %d\nPage Fault Rate: %ld\nTLB Hits: %d\nTLB Hit Rate: %ld\n", n_translated_addresses, page_faults, pfr, tlb_hits, thr);
 }
 
 int main(int argc, char const *argv[])
@@ -126,13 +249,13 @@ int main(int argc, char const *argv[])
 
     init_page_table();
 
-    check_page_table(4);
+    check_page_table(4); // test func, remove
 
-    update_page_table(4, 251);
+    update_page_table(4, 251); // test func, remove
 
-    check_page_table(4);
+    check_page_table(4); // test func, remove
 
-    flush_tlb();
+    flush_tlb(); // flushes and resets the TLB to prepare for the main functionality.
 
     FILE *fp = fopen("addresses.txt", "r");
     if (fp == NULL)
@@ -148,38 +271,14 @@ int main(int argc, char const *argv[])
         int logical_address;
         if (fscanf(fp, "%d", &logical_address) == 1)
         {
-            // Extract the page number and offset from the logical address
-            int page_number = (logical_address >> 8) & 0xFF;
-            int page_offset = logical_address & 0xFF;
-
-            int frame_number; // result
-
-            printf("NUMBER: %d, OFFSET: %d, PAGE NUM: %d\n", logical_address, page_offset, page_number);
-
-            frame_number = search_tlb(page_number);
-            //if(frame_number == -1){} // tlb miss
-
-            frame_number = check_page_table(page_number);
-            if(frame_number != -1){
-                printf("it in da page table bruh!");
-                printf("FRAME NUM: %d\n", frame_number);
-            }
-            else{
-                printf("backing store!\n");
-            }
-            //page number first goes to TLB to find frame number, if not TLB then go to page table for frame number. If page fault, go to backing store.
+            translate_address(logical_address);
         }
     }
 
     // Close the input file
     fclose(fp);
 
-    // begin while loop that reads in all addresses.
-
-    /* while loop should:
-        Translate logical address to physical address
-        Extract Byte Value (signed char at physical address)
-    */
+    print_stats();
 
     printf("Program Ended Successfully!\n");
     return 0;
