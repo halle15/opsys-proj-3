@@ -43,6 +43,25 @@ signed char physical_memory[NUMBER_OF_FRAMES][FRAME_SIZE]; // representation of 
 
 tlb_entry_t tlb[TLB_SIZE]; // array representation of the TLB, with TLB entry structs.
 
+// ==========DECLARATIONS==============
+
+void init_page_table();
+int check_page_table(int page_num);
+void update_page_table(int page_num, int frame_num);
+void flush_tlb();
+void init_tlb();
+int search_tlb(int page_number);
+void update_tlb(int page_number, int frame_number);
+int get_next_available_frame();
+void put_in_memory(int frame_number, int offset, char value);
+int check_physical_address(int frame_number, int offset);
+void search_backing_store(int page_number, signed char *page_data);
+void translate_address(int logical_address);
+void print_stats();
+int main(int argc, char const *argv[]);
+
+// ==========IMPLEMENTATION=============
+
 /// @brief 
 /// @return 
 int get_next_available_frame()
@@ -289,12 +308,6 @@ int main(int argc, char const *argv[])
     printf("Program Start\n");
 
     init_page_table();
-
-    check_page_table(4); // test func, remove
-
-    update_page_table(4, 251); // test func, remove
-
-    check_page_table(4); // test func, remove
 
     flush_tlb(); // flushes and resets the TLB to prepare for the main functionality.
 
