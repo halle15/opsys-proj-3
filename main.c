@@ -62,8 +62,10 @@ int main(int argc, char const *argv[]);
 
 // ==========IMPLEMENTATION=============
 
-/// @brief 
-/// @return 
+/// @brief Returns the number of the next available frame for use in physical memory.
+/// @return The number of the next available frame.
+///
+/// Note that this implementation does not include a replacement strategy for when all frames are in use.
 int get_next_available_frame()
 {
     int frame = next_frame;
@@ -71,10 +73,9 @@ int get_next_available_frame()
     return frame;
 }
 
-
-/// @brief 
-/// @param page_num 
-/// @return 
+/// @brief Responsible for checking if the page table entry for the given page number exists and returns the corresponding frame number if found.
+/// @param page_num The page number whose page table entry is to be checked.
+/// @return The frame number stored in the page table entry for the given page number, or -1 if the entry does not exist.
 int check_page_table(int page_num)
 {
     if (page_num < 0 || page_num >= PAGE_TABLE)
@@ -85,9 +86,9 @@ int check_page_table(int page_num)
     return pageTable[page_num];
 }
 
-/// @brief 
-/// @param page_num 
-/// @param frame_num 
+/// @brief Updates the page table entry for the given page number with the given frame number.
+/// @param page_num The page number whose entry is to be updated.
+/// @param frame_num The frame number to be stored in the page table entry.
 void update_page_table(int page_num, int frame_num)
 {
     if (page_num < 0 || page_num >= PAGE_TABLE)
@@ -103,7 +104,7 @@ void update_page_table(int page_num, int frame_num)
     pageTable[page_num] = frame_num;
 }
 
-/// @brief 
+/// @brief Initializes the TLB by flushing all entries and setting them to be invalid.
 void flush_tlb()
 {
     for (int i = 0; i < TLB_SIZE; i++)
@@ -112,15 +113,9 @@ void flush_tlb()
     }
 }
 
-/// @brief 
-void init_tlb()
-{
-    flush_tlb();
-}
-
-/// @brief 
-/// @param page_number 
-/// @return 
+/// @brief Responsible for searching the TLB for the given page number, and returns the corresponding frame number if it is found.
+/// @param page_number The page number to search for in the TLB.
+/// @return The frame number corresponding to the given page number, if it is found in the TLB. Otherwise, returns -1 to indicate a TLB miss.
 int search_tlb(int page_number)
 {
     for (int i = 0; i < TLB_SIZE; i++)
@@ -135,9 +130,9 @@ int search_tlb(int page_number)
     return -1; // tlb miss!
 }
 
-/// @brief 
-/// @param page_number 
-/// @param frame_number 
+/// @brief Function responsible for placing information into the TLB.
+/// @param page_number Which page to update
+/// @param frame_number At which frame corresponds to the given page number.
 void update_tlb(int page_number, int frame_number)
 {
     static int next_tlb_entry = 0;
@@ -149,7 +144,7 @@ void update_tlb(int page_number, int frame_number)
     next_tlb_entry = (next_tlb_entry + 1) % TLB_SIZE;
 }
 
-/// @brief 
+/// @brief Initializes the page table, sets all values to -1 indicating nothing stored.
 void init_page_table()
 {
     for (int i = 0; i < PAGE_TABLE; i++)
@@ -161,9 +156,9 @@ void init_page_table()
 }
 
 
-/// @brief 
-/// @param page_number 
-/// @param page_data 
+/// @brief Function responsible for searching the BACKING_STORE.bin file.
+/// @param page_number The page number to read from
+/// @param page_data The data structure passed in to store the data to.
 void search_backing_store(int page_number, signed char *page_data)
 {
     // Open the backing store
@@ -182,10 +177,10 @@ void search_backing_store(int page_number, signed char *page_data)
     fclose(backing_store);
 }
 
-/// @brief 
-/// @param frame_number 
-/// @param offset 
-/// @return 
+/// @brief Function responsible for retrieving a value at a given frame and offset.
+/// @param frame_number The frame to retrieve from
+/// @param offset The place within the frame to retrieve from
+/// @return The value stored at the given location.
 int check_physical_address(int frame_number, int offset)
 {
     // Check if the frame_number and offset are within bounds
@@ -204,10 +199,10 @@ int check_physical_address(int frame_number, int offset)
     }
 }
 
-/// @brief 
-/// @param frame_number 
-/// @param offset 
-/// @param value 
+/// @brief Puts a value in the representation of physical memory given a frame_number and offset.
+/// @param frame_number The frame to place the value at.
+/// @param offset Where in the frame to place the value at.
+/// @param value The value to be placed.
 void put_in_memory(int frame_number, int offset, char value)
 {
     // Check that the frame number and offset are within bounds
@@ -289,9 +284,11 @@ void translate_address(int logical_address)
     physical_address = (frame_number * FRAME_SIZE) + page_offset;
     value = check_physical_address(frame_number, page_offset);
 
-    printf("Virtual Address: %d, Physical Address %d, Value: %d, Page Offset: %d, Page Number: %d, Frame Number: %d\n", logical_address, physical_address, value, page_offset, page_number, frame_number);
+    printf("Virtual Address: %d, Physical Address %d, Value: %d\n", logical_address, physical_address, value);
+
+    //printf("Virtual Address: %d, Physical Address %d, Value: %d, Page Offset: %d, Page Number: %d, Frame Number: %d\n", logical_address, physical_address, value, page_offset, page_number, frame_number); debug version
 }
-/// @brief 
+/// @brief Function responsible for calculating and printing stats.
 void print_stats()
 {
     pfr = (float)page_faults / n_translated_addresses;
@@ -299,9 +296,8 @@ void print_stats()
     printf("Number of Translated Addresses: %d\nPage Faults: %d\nPage Fault Rate: %f\nTLB Hits: %d\nTLB Hit Rate: %f\n", n_translated_addresses, page_faults, pfr, tlb_hits, thr);
 }
 
-/// @brief 
-/// @param argc 
-/// @param argv 
+/// @brief Function responsible for organizing information and calling all helper files in order to read from
+/// address.txt and provide both statistics and the physical address translation + value stored at address.
 /// @return 
 int main(int argc, char const *argv[])
 {
