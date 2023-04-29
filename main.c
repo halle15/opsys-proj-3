@@ -10,25 +10,22 @@
 #define PAGE_TABLE 256       // from book
 #define TLB_SIZE 16          // 16 entries in the page table
 
-#define BUFFER 10 // stores logical addresses from addresses.txt?
-
 #define PAGE_NUMBER_MASK 0x0000FF00 // TWO BITS BEFORE LAST TWO
 #define OFFSET_MASK 0x000000FF      // LAST TWO BITS
 
 // ==========STATS=============
 
 int n_translated_addresses = 0; // how many addresses translated from addresses.txt
-int page_faults = 0; // how many times the page table did not have the requested content
-double pfr = 0; // page fault rate
-int tlb_hits = 0; // how many times the TLB was successfully accessed.
-double thr = 0; // tlb hit rate
+int page_faults = 0;            // how many times the page table did not have the requested content
+double pfr = 0;                 // page fault rate
+int tlb_hits = 0;               // how many times the TLB was successfully accessed.
+double thr = 0;                 // tlb hit rate
 
 // ============================
 
 int next_frame = 0; // representation of the next available frame
 
 int pageTable[PAGE_TABLE]; // representation of a page table
-
 
 /// @brief struct representation of an entry in the TLB, valid bit is for replacement algorithms
 typedef struct tlb_entry
@@ -154,7 +151,6 @@ void init_page_table()
 
     printf("Page Table Initialized\n");
 }
-
 
 /// @brief Function responsible for searching the BACKING_STORE.bin file.
 /// @param page_number The page number to read from
@@ -286,7 +282,7 @@ void translate_address(int logical_address)
 
     printf("Virtual Address: %d, Physical Address %d, Value: %d\n", logical_address, physical_address, value);
 
-    //printf("Virtual Address: %d, Physical Address %d, Value: %d, Page Offset: %d, Page Number: %d, Frame Number: %d\n", logical_address, physical_address, value, page_offset, page_number, frame_number); debug version
+    // printf("Virtual Address: %d, Physical Address %d, Value: %d, Page Offset: %d, Page Number: %d, Frame Number: %d\n", logical_address, physical_address, value, page_offset, page_number, frame_number); debug version
 }
 /// @brief Function responsible for calculating and printing stats.
 void print_stats()
@@ -298,7 +294,7 @@ void print_stats()
 
 /// @brief Function responsible for organizing information and calling all helper files in order to read from
 /// address.txt and provide both statistics and the physical address translation + value stored at address.
-/// @return 
+/// @return
 int main(int argc, char const *argv[])
 {
     printf("Program Start\n");
