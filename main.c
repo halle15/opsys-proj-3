@@ -23,6 +23,8 @@ double thr = 0;
 
 // ============================
 
+int next_frame = 0;
+
 int pageTable[PAGE_TABLE];
 
 // 1 is valid, anything else is invalid.
@@ -37,12 +39,6 @@ typedef struct tlb_entry
 signed char physical_memory[NUMBER_OF_FRAMES][FRAME_SIZE]; // representation of physical memory
 
 tlb_entry_t tlb[TLB_SIZE];
-
-int next_frame = 0;
-
-// ========METRICS=========
-
-// ========================
 
 int get_next_available_frame()
 {
@@ -191,7 +187,7 @@ void translate_address(int logical_address)
     if (frame_number != -1)
     {
         tlb_hits++;
-        //printf("from tlb\n");
+        printf("TLB Hit!\n");
         physical_address = (frame_number * FRAME_SIZE) + page_offset;
         value = check_physical_address(frame_number, page_offset);
 
@@ -208,8 +204,8 @@ void translate_address(int logical_address)
         }
         else
         {
-            ++page_faults;
-            //printf("from backing\n");
+            page_faults++;
+            printf("Page Fault!\n");
             // Read the entire page from the backing store
             signed char page_data[FRAME_SIZE];
             search_backing_store(page_number, page_data);
@@ -229,7 +225,7 @@ void translate_address(int logical_address)
 
             update_page_table(page_number, frame_number);
 
-            // update_tlb(page_number, frame_number);
+            update_tlb(page_number, frame_number);
             // look in backing store, send to physical memory, send to page table, send to tlb.
         }
     }
