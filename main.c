@@ -17,9 +17,9 @@
 
 int n_translated_addresses = 0;
 int page_faults = 0;
-long pfr = 0;
+double pfr = 0;
 int tlb_hits = 0;
-long thr = 0;
+double thr = 0;
 
 // ============================
 
@@ -190,6 +190,7 @@ void translate_address(int logical_address)
     frame_number = search_tlb(page_number);
     if (frame_number != -1)
     {
+        tlb_hits++;
         //printf("from tlb\n");
         physical_address = (frame_number * FRAME_SIZE) + page_offset;
         value = check_physical_address(frame_number, page_offset);
@@ -207,6 +208,7 @@ void translate_address(int logical_address)
         }
         else
         {
+            ++page_faults;
             //printf("from backing\n");
             // Read the entire page from the backing store
             signed char page_data[FRAME_SIZE];
@@ -240,7 +242,9 @@ void translate_address(int logical_address)
 }
 
 void print_stats(){
-    printf("Number of Translated Addresses: %d\nPage Faults: %d\nPage Fault Rate: %ld\nTLB Hits: %d\nTLB Hit Rate: %ld\n", n_translated_addresses, page_faults, pfr, tlb_hits, thr);
+    pfr = (float) page_faults / n_translated_addresses;
+    thr = (float) tlb_hits / n_translated_addresses;
+    printf("Number of Translated Addresses: %d\nPage Faults: %d\nPage Fault Rate: %f\nTLB Hits: %d\nTLB Hit Rate: %f\n", n_translated_addresses, page_faults, pfr, tlb_hits, thr);
 }
 
 int main(int argc, char const *argv[])
@@ -272,6 +276,7 @@ int main(int argc, char const *argv[])
         if (fscanf(fp, "%d", &logical_address) == 1)
         {
             translate_address(logical_address);
+            n_translated_addresses++;
         }
     }
 
