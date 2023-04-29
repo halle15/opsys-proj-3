@@ -15,19 +15,22 @@
 #define PAGE_NUMBER_MASK 0x0000FF00 // TWO BITS BEFORE LAST TWO
 #define OFFSET_MASK 0x000000FF      // LAST TWO BITS
 
-int n_translated_addresses = 0;
-int page_faults = 0;
-double pfr = 0;
-int tlb_hits = 0;
-double thr = 0;
+// ==========STATS=============
+
+int n_translated_addresses = 0; // how many addresses translated from addresses.txt
+int page_faults = 0; // how many times the page table did not have the requested content
+double pfr = 0; // page fault rate
+int tlb_hits = 0; // how many times the TLB was successfully accessed.
+double thr = 0; // tlb hit rate
 
 // ============================
 
-int next_frame = 0;
+int next_frame = 0; // representation of the next available frame
 
-int pageTable[PAGE_TABLE];
+int pageTable[PAGE_TABLE]; // representation of a page table
 
-// 1 is valid, anything else is invalid.
+
+/// @brief struct representation of an entry in the TLB, valid bit is for replacement algorithms
 typedef struct tlb_entry
 {
     int page_number;
@@ -38,8 +41,10 @@ typedef struct tlb_entry
 
 signed char physical_memory[NUMBER_OF_FRAMES][FRAME_SIZE]; // representation of physical memory
 
-tlb_entry_t tlb[TLB_SIZE];
+tlb_entry_t tlb[TLB_SIZE]; // array representation of the TLB, with TLB entry structs.
 
+/// @brief 
+/// @return 
 int get_next_available_frame()
 {
     int frame = next_frame;
@@ -47,17 +52,39 @@ int get_next_available_frame()
     return frame;
 }
 
-// -1 result = page fault
+
+/// @brief 
+/// @param page_num 
+/// @return 
 int check_page_table(int page_num)
 {
+    if (page_num < 0 || page_num >= PAGE_TABLE)
+    {
+        printf("Error: Invalid page number: %d\n", page_num);
+        return -1;
+    }
     return pageTable[page_num];
 }
 
+/// @brief 
+/// @param page_num 
+/// @param frame_num 
 void update_page_table(int page_num, int frame_num)
 {
+    if (page_num < 0 || page_num >= PAGE_TABLE)
+    {
+        printf("Error: Invalid page number: %d\n", page_num);
+        return;
+    }
+    if (frame_num < 0 || frame_num >= NUMBER_OF_FRAMES)
+    {
+        printf("Error: Invalid frame number: %d\n", frame_num);
+        return;
+    }
     pageTable[page_num] = frame_num;
 }
 
+/// @brief 
 void flush_tlb()
 {
     for (int i = 0; i < TLB_SIZE; i++)
@@ -66,11 +93,15 @@ void flush_tlb()
     }
 }
 
+/// @brief 
 void init_tlb()
 {
     flush_tlb();
 }
 
+/// @brief 
+/// @param page_number 
+/// @return 
 int search_tlb(int page_number)
 {
     for (int i = 0; i < TLB_SIZE; i++)
@@ -85,6 +116,9 @@ int search_tlb(int page_number)
     return -1; // tlb miss!
 }
 
+/// @brief 
+/// @param page_number 
+/// @param frame_number 
 void update_tlb(int page_number, int frame_number)
 {
     static int next_tlb_entry = 0;
@@ -96,6 +130,7 @@ void update_tlb(int page_number, int frame_number)
     next_tlb_entry = (next_tlb_entry + 1) % TLB_SIZE;
 }
 
+/// @brief 
 void init_page_table()
 {
     for (int i = 0; i < PAGE_TABLE; i++)
@@ -104,14 +139,12 @@ void init_page_table()
     }
 
     printf("Page Table Initialized\n");
-    next_frame = 0; // Initialize next_frame to 0 after the page table is initialized
 }
 
-/*
-    You should read from the backing store and load the data into physical memory.
-    To decide where in the physical memory the data should go, you will need to find an available frame.
-    You can use a simple counter (like a variable called next_available_frame) that increments each time a frame is assigned. This method works when the physical memory size is the same as the virtual address space size, as you don't need to worry about page replacement.
-*/
+
+/// @brief 
+/// @param page_number 
+/// @param page_data 
 void search_backing_store(int page_number, signed char *page_data)
 {
     // Open the backing store
@@ -130,6 +163,10 @@ void search_backing_store(int page_number, signed char *page_data)
     fclose(backing_store);
 }
 
+/// @brief 
+/// @param frame_number 
+/// @param offset 
+/// @return 
 int check_physical_address(int frame_number, int offset)
 {
     // Check if the frame_number and offset are within bounds
@@ -148,6 +185,10 @@ int check_physical_address(int frame_number, int offset)
     }
 }
 
+/// @brief 
+/// @param frame_number 
+/// @param offset 
+/// @param value 
 void put_in_memory(int frame_number, int offset, char value)
 {
     // Check that the frame number and offset are within bounds
@@ -170,7 +211,6 @@ void put_in_memory(int frame_number, int offset, char value)
  * @brief Translates a logical address to a physical address using the TLB and page table.
  *
  * @param logical_address The logical address to translate.
- * @return The corresponding physical address.
  */
 void translate_address(int logical_address)
 {
@@ -178,71 +218,72 @@ void translate_address(int logical_address)
     int page_number = (logical_address >> 8) & 0xFF;
     int page_offset = logical_address & 0xFF;
 
-    int frame_number; // used to find result with (frame_number * FRAME_SIZE) + offset
+    int frame_number; // Used to find result with (frame_number * FRAME_SIZE) + offset
 
-    int value = 0;            // result to be printed
-    int physical_address = 0; // result
+    int value = 0;            // Result to be printed
+    int physical_address = 0; // Result
 
+    // Search for the page number in the TLB
     frame_number = search_tlb(page_number);
-    if (frame_number != -1)
+
+    if (frame_number != -1) // TLB hit
     {
         tlb_hits++;
         printf("TLB Hit!\n");
-        physical_address = (frame_number * FRAME_SIZE) + page_offset;
-        value = check_physical_address(frame_number, page_offset);
-
-    } // tlb hit
-    else
-    {  
+    }
+    else // TLB miss
+    {
+        // Check if the page number is in the page table
         frame_number = check_page_table(page_number);
-        if (frame_number != -1)
+
+        if (frame_number != -1) // Page hit
         {
-            //printf("from page \n");
-            physical_address = (frame_number * FRAME_SIZE) + page_offset;
-            value = check_physical_address(frame_number, page_offset);
-            // handle page hit
         }
-        else
+        else // Page fault
         {
             page_faults++;
             printf("Page Fault!\n");
+
             // Read the entire page from the backing store
             signed char page_data[FRAME_SIZE];
             search_backing_store(page_number, page_data);
 
-            frame_number = get_next_available_frame();
+            int next_available_frame_number = get_next_available_frame();
+            if (next_available_frame_number != frame_number)
+            {
+                frame_number = next_available_frame_number;
+            }
 
             // Store the entire page in physical memory
             for (int i = 0; i < FRAME_SIZE; i++)
             {
                 put_in_memory(frame_number, i, page_data[i]);
             }
-
-            // Get the value from the correct offset within the page
-            value = page_data[page_offset];
-
-            physical_address = (frame_number * FRAME_SIZE) + page_offset;
-
-            update_page_table(page_number, frame_number);
-
-            update_tlb(page_number, frame_number);
-            // look in backing store, send to physical memory, send to page table, send to tlb.
         }
     }
 
-    // printf("Virtual Address: %d, Physical Address %d, Value: %d\n", logical_address, physical_address, value);
+    update_tlb(page_number, frame_number);
+    // Update the page table with the new frame number
+    update_page_table(page_number, frame_number);
+
+    // Calculate the physical address and fetch the value
+    physical_address = (frame_number * FRAME_SIZE) + page_offset;
+    value = check_physical_address(frame_number, page_offset);
 
     printf("Virtual Address: %d, Physical Address %d, Value: %d, Page Offset: %d, Page Number: %d, Frame Number: %d\n", logical_address, physical_address, value, page_offset, page_number, frame_number);
-    
-    // page number first goes to TLB to find frame number, if not TLB then go to page table for frame number. If page fault, go to backing store.
 }
-
-void print_stats(){
-    pfr = (float) page_faults / n_translated_addresses;
-    thr = (float) tlb_hits / n_translated_addresses;
+/// @brief 
+void print_stats()
+{
+    pfr = (float)page_faults / n_translated_addresses;
+    thr = (float)tlb_hits / n_translated_addresses;
     printf("Number of Translated Addresses: %d\nPage Faults: %d\nPage Fault Rate: %f\nTLB Hits: %d\nTLB Hit Rate: %f\n", n_translated_addresses, page_faults, pfr, tlb_hits, thr);
 }
 
+/// @brief 
+/// @param argc 
+/// @param argv 
+/// @return 
 int main(int argc, char const *argv[])
 {
     printf("Program Start\n");
