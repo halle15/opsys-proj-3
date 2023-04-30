@@ -65,9 +65,7 @@ int main(int argc, char const *argv[]);
 /// Note that this implementation does not include a replacement strategy for when all frames are in use.
 int get_next_available_frame()
 {
-    int frame = next_frame;
-    next_frame = (next_frame + 1) % NUMBER_OF_FRAMES;
-    return frame;
+    return next_frame++;
 }
 
 /// @brief Responsible for checking if the page table entry for the given page number exists and returns the corresponding frame number if found.
@@ -258,11 +256,7 @@ void translate_address(int logical_address)
             signed char page_data[FRAME_SIZE];
             search_backing_store(page_number, page_data);
 
-            int next_available_frame_number = get_next_available_frame();
-            if (next_available_frame_number != frame_number)
-            {
-                frame_number = next_available_frame_number;
-            }
+            frame_number = get_next_available_frame(); 
 
             // Store the entire page in physical memory
             for (int i = 0; i < FRAME_SIZE; i++)
